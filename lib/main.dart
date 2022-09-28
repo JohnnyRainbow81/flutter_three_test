@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Color;
 import 'package:flutter_gl/flutter_gl.dart';
+import 'package:three_dart/three3d/math/index.dart';
+import 'package:three_dart/three3d/renderers/webgl/index.dart';
 import 'package:three_dart/three_dart.dart' as THREE;
 
 void main() {
@@ -45,9 +47,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   late THREE.Scene scene;
   late THREE.Camera cameraStatic;
-  late THREE.Mesh mesh;
+  late THREE.Mesh sphere;
 
-  late THREE.Points torusPoints;
+  //late THREE.Points donutPoints;
+  late THREE.Mesh donut;
 
   late THREE.Camera cameraPerspective;
   late THREE.Camera cameraOrtho;
@@ -61,6 +64,10 @@ class _MyHomePageState extends State<MyHomePage> {
   late THREE.CameraHelper cameraPerspectiveHelper;
 
   late THREE.Texture alphaTexture;
+
+//Shader Example
+  late THREE.Points particleSystem;
+  int particles = 100000;
 
   int frustumSize = 600;
 
@@ -173,7 +180,8 @@ class _MyHomePageState extends State<MyHomePage> {
     cameraStatic = THREE.PerspectiveCamera(50, 0.5 * aspect, 1, 10000);
     cameraStatic.position.z = 2500;
 
-    cameraPerspective = THREE.PerspectiveCamera(50, /* 0.5 * */ aspect, 1, 10000);
+    cameraPerspective =
+        THREE.PerspectiveCamera(50, /* 0.5 * */ aspect, 1, 10000);
 
     cameraPerspectiveHelper = THREE.CameraHelper(cameraPerspective);
     scene.add(cameraPerspectiveHelper);
@@ -211,41 +219,123 @@ class _MyHomePageState extends State<MyHomePage> {
 
     //
     //weiße kugel
-    final meshMaterial = THREE.PointsMaterial();
-    meshMaterial.color = THREE.Color(1, 1, 1);
-    meshMaterial.visible = false;
-    
-    mesh = THREE.Mesh(THREE.SphereGeometry(100, 16, 8),
-        meshMaterial/* THREE.MeshBasicMaterial({"color": 0xffffff, "wireframe": true}) */);
+    final sphereMaterial = THREE.LineBasicMaterial();
+    sphereMaterial.color = THREE.Color(1, 1, 1);
+    sphereMaterial.visible = false;
 
-    scene.add(mesh);
+    sphere = THREE.Mesh(THREE.SphereGeometry(100, 16, 8),
+        sphereMaterial /* THREE.MeshBasicMaterial({"color": 0xffffff, "wireframe": true}) */);
+
+    scene.add(sphere);
+
+//Shader Example
+// https://github.com/mrdoob/three.js/blob/master/examples/webgl_buffergeometry_custom_attributes_particles.html
+
+    String vertexShader = """
+    attribute float size;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				vColor = color;
+
+				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+
+				gl_PointSize = size * ( 300.0 / -mvPosition.z );
+
+				gl_Position = projectionMatrix * mvPosition;
+    """;
+
+    String fragmentShader = """
+    uniform sampler2D pointTexture;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				gl_FragColor = vec4( vColor, 1.0 );
+
+				gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord );
+
+			}
+    """;
+
+    // final shaderMaterial = THREE.ShaderMaterial()
+    //   ..vertexShader = vertexShader
+    //   ..fragmentShader = fragmentShader
+    //   ..blending = THREE.AdditiveBlending
+    //   ..depthTest = false
+    //   ..transparent = true
+    //   ..vertexColors = true
+    //   ..uniforms = {
+    //     "pointTexture": {"value": alphaTexture}
+    //   };
+
+    // const radius = 200;
+
+    // final pointsGeometry = THREE.BufferGeometry();
+
+    // const positions = <double>[];
+    // const colors = <double>[];
+    // const sizes = <double>[];
+
+    // final color = THREE.Color();
+
+    // for (int i = 0; i < particles; i++) {
+    //   positions.add((Math.random() * 2 - 1) * radius);
+    //   positions.add((Math.random() * 2 - 1) * radius);
+    //   positions.add((Math.random() * 2 - 1) * radius);
+
+    //   color.setHSL(i / particles, 1.0, 0.5);
+
+    //   colors.addAll([color.r, color.g, color.b]);
+
+    //   sizes.add(20);
+    // }
+
+    // pointsGeometry.setAttribute('position',
+    //     THREE.Float32BufferAttribute(Float32Array.fromList(positions), 3));
+    // pointsGeometry.setAttribute('color',
+    //     THREE.Float32BufferAttribute(Float32Array.fromList(colors), 3));
+    // pointsGeometry.setAttribute(
+    //     'size',
+    //     THREE.Float32BufferAttribute(Float32Array.fromList(sizes), 1)
+    //         .setUsage(THREE.DynamicDrawUsage));
+
+    // particleSystem = THREE.Points(pointsGeometry, shaderMaterial);
+
+    // scene.add(particleSystem);
 
 //Gefüllter Torus
-    final torusGeometry = THREE.TorusGeometry(50, 20, 16, 18).toNonIndexed();
-    final torusMat = THREE.MeshBasicMaterial();
-    torusMat.color = THREE.Color(1, 0, 1);
-    torusMat.wireframe = true;
-    torusMat.visible = false;
-    final torus = THREE.Mesh(torusGeometry, torusMat);
-    torus.position.x = 300;
+    final donutGeometry = THREE.TorusGeometry(50, 20, 16, 18).toNonIndexed();
 
-    mesh.add(torus);
+    final donutMat = THREE.MeshBasicMaterial()
+      ..color = THREE.Color(1, 0, 1)
+      ..wireframe = true
+      ..visible = false;
 
-    final pointsGeom = fillWithPoints(torusGeometry, 1000);
+    donut = THREE.Mesh(donutGeometry, donutMat)..position.x = 0;
+
+    sphere.add(donut);
+
+    final pointsGeom = fillWithPoints(donutGeometry, 1000);
+
     final pointsMat = THREE.PointsMaterial()
       ..color = THREE.Color(0.8, 0.9, 1)
-      ..size = THREE.MathUtils.randFloat(1, 20)
+      ..size = 10// THREE.MathUtils.randFloat(1, 20)
       ..map = alphaTexture
       ..alphaMap = alphaTexture
       ..transparent = true
       ..blending = THREE.CustomBlending
       ..blendEquation = THREE.AddEquation
       ..blendSrc = THREE.SrcAlphaFactor
+      ..alphaToCoverage = true
       ..blendDst = THREE.OneMinusSrcAlphaFactor;
 
-    torusPoints = THREE.Points(pointsGeom, pointsMat);
+    final donutPoints = THREE.Points(pointsGeom, pointsMat);
 
-    torus.add(torusPoints);
+    donut.add(donutPoints);
 
     //grüne kugel
     var mesh2 = THREE.Mesh(THREE.SphereGeometry(50, 16, 8),
@@ -259,15 +349,18 @@ class _MyHomePageState extends State<MyHomePage> {
     mesh3.position.z = 150;
     //mesh.add(mesh3);
 
-    //
-    // create a light source (Stefan)
-    const color = 0xffffff;
-    double intensity = 1;
-    final light = THREE.DirectionalLight(color, intensity);
-    light.position.set(0, 0, 0);
-    scene.add(light);
 
-    var geometry = THREE.BufferGeometry();
+    // create a light source (Stefan)
+
+    // const lightSourceColor = 0xffffff;
+    // double intensity = 1.0;
+    // final light = THREE.PointLight(lightSourceColor, intensity);
+    // light.angle = 40;
+    // light.position.set(0, 0, 0);
+
+    // scene.add(light);
+
+    var starsGeometry = THREE.BufferGeometry();
     List<double> vertices = [];
 
     for (var i = 0; i < 10000; i++) {
@@ -275,34 +368,20 @@ class _MyHomePageState extends State<MyHomePage> {
       vertices.add(THREE.MathUtils.randFloatSpread(2000)); // x
       vertices.add(THREE.MathUtils.randFloatSpread(2000)); // y
       vertices.add(THREE.MathUtils.randFloatSpread(2000)); // z
-
     }
 
-    geometry.setAttribute('position',
+    starsGeometry.setAttribute('position',
         THREE.Float32BufferAttribute(Float32Array.fromList(vertices), 3));
 
-    var pointsMaterial = THREE.PointsMaterial();
-    //pointsMaterial.color = THREE.Color(1, 1, 1);
-    pointsMaterial.map = alphaTexture;
-    pointsMaterial.size = 5;
-    // pointsMaterial.blending = THREE.CustomBlending;
-    // pointsMaterial.blendEquation = THREE.AddEquation;
-    // pointsMaterial.blendSrc = THREE.SrcAlphaFactor;
-    // pointsMaterial.blendDst = THREE.OneMinusSrcAlphaFactor;
-    pointsMaterial.transparent = true;
+    var starsMaterial = THREE.PointsMaterial()
+      ..map = alphaTexture
+      ..size = 5
+      ..transparent = true
+      ..lights = true;
 
-    //pointsMaterial.vertexColors = true;
-    pointsMaterial.lights = true;
-    var particles = THREE.Points(geometry, pointsMaterial
-        /* THREE.PointsMaterial({
-          //"color": 0x888888,
-          "size": 5,
-          "sizeAttenuation": true,
-          "map": alphaTexture,
-          // "alphaMap": alphaTexture
-        }) */
-        );
-    scene.add(particles);
+    var stars = THREE.Points(starsGeometry, starsMaterial);
+
+    scene.add(stars);
 
     animate();
   }
@@ -327,22 +406,37 @@ class _MyHomePageState extends State<MyHomePage> {
 //Wird benutzt um die Animation anzutreiben
     var driver = DateTime.now().millisecondsSinceEpoch * 0.0001;
 
-    mesh.position.x = 700 * THREE.Math.cos(driver);
-    mesh.position.z = 700 * THREE.Math.sin(driver);
-    mesh.position.y = 700 * THREE.Math.sin(driver);
+    sphere.position.x = 700 * THREE.Math.cos(driver);
+    sphere.position.z = 700 * THREE.Math.sin(driver);
+    sphere.position.y = 700 * THREE.Math.sin(driver);
 
     //TorusPoints
 
-    //torusPoints.position.x += THREE.Math.cos(driver);
+    double distToCamera = cameraPerspective.position.distanceTo(donut.position);
+
+    print(distToCamera);
+    //donutPoints.position.z +=  THREE.Math.cos(driver + 100); //strange, only size(?!) of stars changes
+
+    //Shader Example
+
+    /* particleSystem.rotation.z = 0.01 * driver;
+
+    final sizes = particleSystem.geometry?.attributes["size"];
+
+    for (int i = 0; i < particles; i++) {
+      sizes[i] = 10 * (1 + Math.sin(0.1 * i + driver));
+    }
+
+    particleSystem.geometry?.attributes["size"].needsUpdate = true; */
 
 //grüne kugel rotiert um weiße kugel
-    mesh.children[0].position.x = 150 * THREE.Math.cos(2 * driver);
-    mesh.children[0].position.z = 150 * THREE.Math.sin(2 * driver);
+    sphere.children[0].position.x = 150 * THREE.Math.cos(2 * driver);
+    sphere.children[0].position.z = 150 * THREE.Math.sin(2 * driver);
 
     if (activeCamera == cameraPerspective) {
       //cameraPerspective.fov = 35 + 30 * THREE.Math.sin(0.5 * driver);
       // cameraPerspective.far = mesh.position.length();
-      cameraPerspective.zoom += zoom * 0.1;
+      cameraPerspective.position.z += zoom * 10;
 
       //reset
       zoom = 0;
@@ -363,20 +457,20 @@ class _MyHomePageState extends State<MyHomePage> {
       // cameraPerspectiveHelper.visible = false;
     }
 
-    cameraRig.lookAt(mesh.position);
+    cameraRig.lookAt(sphere.position);
 
     webGLrenderer!.clear();
 
     activeHelper.visible = false;
 
-    webGLrenderer!.setViewport(0, 0, width/*  / 2 */, height);
+    webGLrenderer!.setViewport(0, 0, width /*  / 2 */, height);
     webGLrenderer!.setClearColor(THREE.Color(0.0, 0.0, 0.1));
     webGLrenderer!.render(scene, activeCamera);
 
     activeHelper.visible = true;
 
     //webGLrenderer!.setViewport(width / 2, 0, width / 2, height);
-   // webGLrenderer!.render(scene, cameraStatic);
+    // webGLrenderer!.render(scene, cameraStatic);
 
     int tEnd = DateTime.now().millisecondsSinceEpoch;
 
