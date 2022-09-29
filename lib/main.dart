@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Color;
@@ -19,6 +21,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
+        fontFamily: "Unica",
         primarySwatch: Colors.blue,
       ),
       home: const MyHomePage(fileName: "webgl_camera"),
@@ -65,6 +68,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   late THREE.Texture alphaTexture;
 
+  late Offset mousePos;
+
+  //Texts
+
+  List<String> randomTextList = [];
+
 //Shader Example
   late THREE.Points particleSystem;
   int particles = 100000;
@@ -84,7 +93,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   dynamic sourceTexture;
 
-  double zoom = 0;
+  double scroll = 0;
 
   initAll(BuildContext context) {
     debugPrint("initAll()");
@@ -130,6 +139,7 @@ class _MyHomePageState extends State<MyHomePage> {
       alphaTexture = await loader.loadAsync(
           "https://raw.githubusercontent.com/Kuntal-Das/textures/main/sp2.png",
           null);
+
       initRenderer();
       initPage();
     });
@@ -323,7 +333,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final pointsMat = THREE.PointsMaterial()
       ..color = THREE.Color(0.8, 0.9, 1)
-      ..size = 10// THREE.MathUtils.randFloat(1, 20)
+      ..size = 10 // THREE.MathUtils.randFloat(1, 20)
       ..map = alphaTexture
       ..alphaMap = alphaTexture
       ..transparent = true
@@ -348,7 +358,6 @@ class _MyHomePageState extends State<MyHomePage> {
         THREE.MeshBasicMaterial({"color": 0xFF00fF, "wireframe": true}));
     mesh3.position.z = 150;
     //mesh.add(mesh3);
-
 
     // create a light source (Stefan)
 
@@ -414,7 +423,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     double distToCamera = cameraPerspective.position.distanceTo(donut.position);
 
-    print(distToCamera);
+    // print(distToCamera);
+
     //donutPoints.position.z +=  THREE.Math.cos(driver + 100); //strange, only size(?!) of stars changes
 
     //Shader Example
@@ -436,10 +446,10 @@ class _MyHomePageState extends State<MyHomePage> {
     if (activeCamera == cameraPerspective) {
       //cameraPerspective.fov = 35 + 30 * THREE.Math.sin(0.5 * driver);
       // cameraPerspective.far = mesh.position.length();
-      cameraPerspective.position.z += zoom * 10;
-
+      cameraPerspective.position.z += scroll * 10;
+      
       //reset
-      zoom = 0;
+      scroll = 0;
 
       cameraPerspective.updateProjectionMatrix();
 
@@ -503,12 +513,15 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
+  void generateList() {
+    randomTextList = List<String>.generate(100,
+        (index) => "Das ist nur ein Blindtext ${Random(100).nextInt(100)}");
+  }
+
   @override
   Widget build(BuildContext context) {
+    generateList();
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.fileName),
-      ),
       body: Builder(
         builder: (BuildContext context) {
           initAll(context);
@@ -516,6 +529,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Column(
             children: [
               Stack(
+                alignment: Alignment.center,
                 children: [
                   SizedBox(
                       width: width,
@@ -523,17 +537,9 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Builder(builder: (BuildContext context) {
                         if (kIsWeb) {
                           return flutterGLplugin.isInitialized
-                              ? Listener(
-                                  onPointerSignal: (event) {
-                                    if (event is PointerScrollEvent) {
-                                      print(event.scrollDelta.dy);
-                                      zoom = event.scrollDelta.dy * 0.01;
-                                    }
-                                  },
-                                  child: HtmlElementView(
-                                      viewType: flutterGLplugin.textureId!
-                                          .toString()),
-                                )
+                              ? HtmlElementView(
+                                  viewType:
+                                      flutterGLplugin.textureId!.toString())
                               : Container();
                         } else {
                           return flutterGLplugin.isInitialized
@@ -541,6 +547,37 @@ class _MyHomePageState extends State<MyHomePage> {
                               : Container();
                         }
                       })),
+                  SizedBox(
+                    width: width,
+                    height: height,
+                    child: Center(
+                      child: Listener(
+                        onPointerSignal: (event) {
+                          if (event is PointerScrollEvent) {
+                            scroll = event.scrollDelta.dy * 0.01;
+                            mousePos = event.localPosition;
+                          }
+                        },
+                        child: ListView(shrinkWrap: true, children: [
+                          ...randomTextList
+                              .map((e) => Padding(
+                                    padding: EdgeInsets.only(
+                                        bottom: Random(50).nextDouble() * 600,
+                                        top: Random(50).nextDouble() * 600),
+                                    child: Text(
+                                      e,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w300,
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: Random().nextDouble() * 70),
+                                    ),
+                                  ))
+                              .toList()
+                        ]),
+                      ),
+                    ),
+                  )
                 ],
               ),
             ],
