@@ -160,7 +160,7 @@ class _MyHomePageState extends State<MyHomePage> {
     webGLrenderer!.shadowMap.enabled = false;
     webGLrenderer!.autoClear = false;
 
-// if Native..? 
+// if Native..?
 //in der if-clause wird trotzdem mit dem webRenderer hantiert. Hmmm...
     if (!kIsWeb) {
       var pars = THREE.WebGLRenderTargetOptions({
@@ -238,85 +238,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
     scene.add(sphere);
 
-//Shader Example
-// https://github.com/mrdoob/three.js/blob/master/examples/webgl_buffergeometry_custom_attributes_particles.html
-
-    String vertexShader = """
-    attribute float size;
-
-			varying vec3 vColor;
-
-			void main() {
-
-				vColor = color;
-
-				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-
-				gl_PointSize = size * ( 300.0 / -mvPosition.z );
-
-				gl_Position = projectionMatrix * mvPosition;
-    """;
-
-    String fragmentShader = """
-    uniform sampler2D pointTexture;
-
-			varying vec3 vColor;
-
-			void main() {
-
-				gl_FragColor = vec4( vColor, 1.0 );
-
-				gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord );
-
-			}
-    """;
-
-    // final shaderMaterial = THREE.ShaderMaterial()
-    //   ..vertexShader = vertexShader
-    //   ..fragmentShader = fragmentShader
-    //   ..blending = THREE.AdditiveBlending
-    //   ..depthTest = false
-    //   ..transparent = true
-    //   ..vertexColors = true
-    //   ..uniforms = {
-    //     "pointTexture": {"value": alphaTexture}
-    //   };
-
-    // const radius = 200;
-
-    // final pointsGeometry = THREE.BufferGeometry();
-
-    // const positions = <double>[];
-    // const colors = <double>[];
-    // const sizes = <double>[];
-
-    // final color = THREE.Color();
-
-    // for (int i = 0; i < particles; i++) {
-    //   positions.add((Math.random() * 2 - 1) * radius);
-    //   positions.add((Math.random() * 2 - 1) * radius);
-    //   positions.add((Math.random() * 2 - 1) * radius);
-
-    //   color.setHSL(i / particles, 1.0, 0.5);
-
-    //   colors.addAll([color.r, color.g, color.b]);
-
-    //   sizes.add(20);
-    // }
-
-    // pointsGeometry.setAttribute('position',
-    //     THREE.Float32BufferAttribute(Float32Array.fromList(positions), 3));
-    // pointsGeometry.setAttribute('color',
-    //     THREE.Float32BufferAttribute(Float32Array.fromList(colors), 3));
-    // pointsGeometry.setAttribute(
-    //     'size',
-    //     THREE.Float32BufferAttribute(Float32Array.fromList(sizes), 1)
-    //         .setUsage(THREE.DynamicDrawUsage));
-
-    // particleSystem = THREE.Points(pointsGeometry, shaderMaterial);
-
-    // scene.add(particleSystem);
-
 //Gefüllter Torus
     final donutGeometry = THREE.TorusGeometry(50, 20, 16, 18).toNonIndexed();
 
@@ -336,6 +257,8 @@ class _MyHomePageState extends State<MyHomePage> {
       ..size = 10 // THREE.MathUtils.randFloat(1, 20)
       ..map = alphaTexture
       ..alphaMap = alphaTexture
+      ..vertexShader = vertexShader
+      ..fragmentShader = fragmentShader
       ..transparent = true
       ..blending = THREE.CustomBlending
       ..blendEquation = THREE.AddEquation
@@ -347,28 +270,21 @@ class _MyHomePageState extends State<MyHomePage> {
 
     donut.add(donutPoints);
 
-    //grüne kugel
-    var mesh2 = THREE.Mesh(THREE.SphereGeometry(50, 16, 8),
-        THREE.MeshBasicMaterial({"color": 0x00ff00, "wireframe": true}));
-    mesh2.position.y = 150;
-    //mesh.add(mesh2);
+    //Punkte Exp
+    final pPointsGeo = THREE.SphereGeometry(50, 16, 10);
+    final pPointsMat = THREE.ShaderMaterial()
+      ..vertexShader = vertexShader
+      ..fragmentShader = fragmentShader
+      ..uniforms = {
+        "pointsTexture": {"value": alphaTexture}
+      }
+      ..transparent = true;
 
-    //lila kugel
-    var mesh3 = THREE.Mesh(THREE.SphereGeometry(12, 6, 3),
-        THREE.MeshBasicMaterial({"color": 0xFF00fF, "wireframe": true}));
-    mesh3.position.z = 150;
-    //mesh.add(mesh3);
+    final pPoints = THREE.Points(pointsGeom, pPointsMat);
 
-    // create a light source (Stefan)
+    sphere.add(pPoints);
 
-    // const lightSourceColor = 0xffffff;
-    // double intensity = 1.0;
-    // final light = THREE.PointLight(lightSourceColor, intensity);
-    // light.angle = 40;
-    // light.position.set(0, 0, 0);
-
-    // scene.add(light);
-
+    //Sterne
     var starsGeometry = THREE.BufferGeometry();
     List<double> vertices = [];
 
@@ -423,49 +339,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
     double distToCamera = cameraPerspective.position.distanceTo(donut.position);
 
-    // print(distToCamera);
-
-    //donutPoints.position.z +=  THREE.Math.cos(driver + 100); //strange, only size(?!) of stars changes
-
-    //Shader Example
-
-    /* particleSystem.rotation.z = 0.01 * driver;
-
-    final sizes = particleSystem.geometry?.attributes["size"];
-
-    for (int i = 0; i < particles; i++) {
-      sizes[i] = 10 * (1 + Math.sin(0.1 * i + driver));
-    }
-
-    particleSystem.geometry?.attributes["size"].needsUpdate = true; */
-
 //grüne kugel rotiert um weiße kugel
     sphere.children[0].position.x = 150 * THREE.Math.cos(2 * driver);
     sphere.children[0].position.z = 150 * THREE.Math.sin(2 * driver);
 
-    if (activeCamera == cameraPerspective) {
-      //cameraPerspective.fov = 35 + 30 * THREE.Math.sin(0.5 * driver);
-      // cameraPerspective.far = mesh.position.length();
-      cameraPerspective.position.z += scroll * 10;
-      
-      //reset
-      scroll = 0;
+    cameraPerspective.position.z += scroll * 10;
 
-      cameraPerspective.updateProjectionMatrix();
+    //reset
+    scroll = 0;
 
-      //cameraPerspectiveHelper.update();
-      //cameraPerspectiveHelper.visible = true;
-
-      cameraOrthoHelper.visible = false;
-    } else {
-      //cameraOrtho.far = mesh.position.length();
-      //cameraOrtho.updateProjectionMatrix();
-
-      // cameraOrthoHelper.update();
-      // cameraOrthoHelper.visible = true;
-
-      // cameraPerspectiveHelper.visible = false;
-    }
+    cameraPerspective.updateProjectionMatrix();
 
     cameraRig.lookAt(sphere.position);
 
@@ -478,9 +361,6 @@ class _MyHomePageState extends State<MyHomePage> {
     webGLrenderer!.render(scene, activeCamera);
 
     activeHelper.visible = true;
-
-    //webGLrenderer!.setViewport(width / 2, 0, width / 2, height);
-    // webGLrenderer!.render(scene, cameraStatic);
 
     int tEnd = DateTime.now().millisecondsSinceEpoch;
 
@@ -654,3 +534,24 @@ bool isInside(THREE.Vector3 v, THREE.BufferGeometry geometry) {
 
   return counter % 2 == 1;
 }
+
+//Shader Examples
+// https://github.com/mrdoob/three.js/blob/master/examples/webgl_buffergeometry_custom_attributes_particles.html
+// https://github.com/mrdoob/three.js/blob/master/examples/webgl_interactive_points.html
+
+String vertexShader = """
+   void main(){
+    
+    gl_PointSize = 5.0;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.);
+}
+    """;
+
+String fragmentShader = """ 
+      uniform sampler2D pointsTexture;
+
+			void main() {
+
+				gl_FragColor = vec4(1.0 );
+			}
+    """;
