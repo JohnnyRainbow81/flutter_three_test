@@ -160,8 +160,8 @@ class _MyHomePageState extends State<MyHomePage> {
     webGLrenderer!.shadowMap.enabled = false;
     webGLrenderer!.autoClear = false;
 
-// if Native..? Wird jedenfalls für Web NICHT aufgerufen (war zu erwarten),
-//aber in der if-clause wird trotzdem mit dem webRenderer hantiert. Hmmm...
+// if Native..? 
+//in der if-clause wird trotzdem mit dem webRenderer hantiert. Hmmm...
     if (!kIsWeb) {
       var pars = THREE.WebGLRenderTargetOptions({
         "minFilter": THREE.LinearFilter,
