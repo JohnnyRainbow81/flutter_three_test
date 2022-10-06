@@ -7,6 +7,7 @@ import 'package:flutter_gl/flutter_gl.dart';
 import 'package:three_dart/three3d/math/index.dart';
 import 'package:three_dart/three3d/renderers/webgl/index.dart';
 import 'package:three_dart/three_dart.dart' as THREE;
+import 'dart:math' as math;
 
 void main() {
   runApp(MyApp());
@@ -54,21 +55,19 @@ class _MyHomePageState extends State<MyHomePage> {
 
   //late THREE.Points donutPoints;
   late THREE.Mesh donut;
-
+  late THREE.Points pPoints;
   late THREE.Camera cameraPerspective;
-  late THREE.Camera cameraOrtho;
-
-  late THREE.Group cameraRig;
 
   late THREE.Camera activeCamera;
   late THREE.CameraHelper activeHelper;
+  THREE.Vector3? cameraPositionOld;
 
   late THREE.CameraHelper cameraOrthoHelper;
   late THREE.CameraHelper cameraPerspectiveHelper;
 
   late THREE.Texture alphaTexture;
 
-  late Offset mousePos;
+  THREE.Vector3 mousePos = THREE.Vector3(0, 0, 0);
 
   //Texts
 
@@ -197,35 +196,14 @@ class _MyHomePageState extends State<MyHomePage> {
     scene.add(cameraPerspectiveHelper);
 
     //
-    cameraOrtho = THREE.OrthographicCamera(
-        0.5 * frustumSize * aspect / -2,
-        0.5 * frustumSize * aspect / 2,
-        frustumSize / 2,
-        frustumSize / -2,
-        150,
-        1000);
-
-    cameraOrthoHelper = THREE.CameraHelper(cameraOrtho);
-    //scene.add(cameraOrthoHelper);
-
-    //
 
     activeCamera = cameraPerspective;
     activeHelper = cameraPerspectiveHelper;
 
     // counteract different front orientation of cameras vs rig
+//    cameraPerspective.rotation.y = THREE.Math.PI;
 
-    cameraOrtho.rotation.y = THREE.Math.PI;
-    cameraPerspective.rotation.y = THREE.Math.PI;
-
-    cameraRig = THREE.Group();
-
-    // "add" heißt, als children anheften
-    cameraRig.add(cameraPerspective);
-    //cameraRig.add(cameraOrtho);
-
-    //bis hier ist die szene leer
-    scene.add(cameraRig);
+    scene.add(cameraPerspective);
 
     //
     //weiße kugel
@@ -250,9 +228,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
     sphere.add(donut);
 
-    final pointsGeom = fillWithPoints(donutGeometry, 1000);
+    final donutPointsGeom = fillWithPoints(donutGeometry, 1000);
 
-    final pointsMat = THREE.PointsMaterial()
+    final donutPointsMat = THREE.PointsMaterial()
       ..color = THREE.Color(0.8, 0.9, 1)
       ..size = 10 // THREE.MathUtils.randFloat(1, 20)
       ..map = alphaTexture
@@ -266,7 +244,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ..alphaToCoverage = true
       ..blendDst = THREE.OneMinusSrcAlphaFactor;
 
-    final donutPoints = THREE.Points(pointsGeom, pointsMat);
+    final donutPoints = THREE.Points(donutPointsGeom, donutPointsMat);
 
     donut.add(donutPoints);
 
@@ -276,11 +254,12 @@ class _MyHomePageState extends State<MyHomePage> {
       ..vertexShader = vertexShader
       ..fragmentShader = fragmentShader
       ..uniforms = {
-        "pointsTexture": {"value": alphaTexture}
+        "pointSize": {"type": "float", "value": 15.0},
+        "pointsTexture": {"value": alphaTexture},
       }
       ..transparent = true;
 
-    final pPoints = THREE.Points(pointsGeom, pPointsMat);
+    pPoints = THREE.Points(donutPointsGeom, pPointsMat);
 
     sphere.add(pPoints);
 
@@ -302,6 +281,11 @@ class _MyHomePageState extends State<MyHomePage> {
       ..map = alphaTexture
       ..size = 5
       ..transparent = true
+      ..blending = THREE.CustomBlending
+      ..blendEquation = THREE.AddEquation
+      ..blendSrc = THREE.SrcAlphaFactor
+      ..alphaToCoverage = true
+      ..blendDst = THREE.OneMinusSrcAlphaFactor
       ..lights = true;
 
     var stars = THREE.Points(starsGeometry, starsMaterial);
@@ -344,13 +328,18 @@ class _MyHomePageState extends State<MyHomePage> {
     sphere.children[0].position.z = 150 * THREE.Math.sin(2 * driver);
 
     cameraPerspective.position.z += scroll * 10;
+    debugPrint("cameraPos.z: ${cameraPerspective.position.z}");
+
+    cameraPerspective.position.x += mousePos.x;
+    cameraPerspective.position.y += mousePos.y;
+    //debugPrint(mousePos.dx.toString());
+
+    cameraPerspective.lookAt(sphere.position);
 
     //reset
     scroll = 0;
 
     cameraPerspective.updateProjectionMatrix();
-
-    cameraRig.lookAt(sphere.position);
 
     webGLrenderer!.clear();
 
@@ -395,7 +384,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void generateList() {
     randomTextList = List<String>.generate(100,
-        (index) => "Das ist nur ein Blindtext ${Random(100).nextInt(100)}");
+        (index) => "Das ist nur ein Blindtext $index");
   }
 
   @override
@@ -431,30 +420,54 @@ class _MyHomePageState extends State<MyHomePage> {
                     width: width,
                     height: height,
                     child: Center(
+                      // We need Listener because it's the only way to get mouse scrolling events
                       child: Listener(
                         onPointerSignal: (event) {
                           if (event is PointerScrollEvent) {
-                            scroll = event.scrollDelta.dy * 0.01;
-                            mousePos = event.localPosition;
+                            scroll =  event.scrollDelta.dy * 0.01;
                           }
                         },
-                        child: ListView(shrinkWrap: true, children: [
-                          ...randomTextList
-                              .map((e) => Padding(
-                                    padding: EdgeInsets.only(
-                                        bottom: Random(50).nextDouble() * 600,
-                                        top: Random(50).nextDouble() * 600),
-                                    child: Text(
-                                      e,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w300,
-                                          color: Colors.white.withOpacity(0.8),
-                                          fontSize: Random().nextDouble() * 70),
-                                    ),
-                                  ))
-                              .toList()
-                        ]),
+                        // We need MouseRegion because "onExit" doesn't work for Listener-Widget
+                        child: MouseRegion(
+                          onExit: (event) {
+                            debugPrint("PointerExitEvent");
+                            cameraPerspective.position = cameraPositionOld!;
+                            cameraPerspective.updateMatrix();
+                            cameraPositionOld = null;
+                          },
+                          onHover: (event) {
+                            if (cameraPositionOld == null) {
+                              cameraPositionOld = THREE.Vector3();
+                              cameraPositionOld = cameraPerspective.position;
+                            }
+                            double x = (event.position.dx / width - 0.5) * 2;
+                            double y = (event.position.dy / height - 0.5) * 2;
+
+                            mousePos.x = x;
+                            mousePos.y = y;
+
+                            debugPrint(mousePos.x.toString());
+                          },
+                          child: ListView(shrinkWrap: true, children: [
+                            ...randomTextList
+                                .map((e) => Padding(
+                                      padding: EdgeInsets.only(
+                                          bottom: Random(50).nextDouble() * 600,
+                                          top: Random(50).nextDouble() * 600),
+                                      child: Text(
+                                        e,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w300,
+                                            color:
+                                                Colors.white.withOpacity(0.8),
+                                            fontSize:
+                                                Random().nextDouble() * 70),
+                                      ),
+                                    ))
+                                .toList()
+                          ]),
+                        ),
                       ),
                     ),
                   )
@@ -540,18 +553,24 @@ bool isInside(THREE.Vector3 v, THREE.BufferGeometry geometry) {
 // https://github.com/mrdoob/three.js/blob/master/examples/webgl_interactive_points.html
 
 String vertexShader = """
+    uniform float pointSize;
+
    void main(){
+
+    //calculate position in world space
+    vec4 wPosition =   modelMatrix * vec4(position, 1.);
     
-    gl_PointSize = 5.0;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.);
+    gl_PointSize = pointSize -(distance(cameraPosition.xyz, wPosition.xyz)/pointSize)*0.2;
+    gl_Position = projectionMatrix* modelViewMatrix * vec4(position,1.);
 }
     """;
 
 String fragmentShader = """ 
+
       uniform sampler2D pointsTexture;
 
 			void main() {
 
-				gl_FragColor = vec4(1.0 );
+				gl_FragColor = vec4(1.0 ) ;
 			}
     """;
