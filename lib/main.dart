@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -55,6 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   //late THREE.Points donutPoints;
   late THREE.Mesh donut;
+  late THREE.Points donutPoints;
   late THREE.Points pPoints;
   late THREE.Camera cameraPerspective;
 
@@ -68,6 +70,8 @@ class _MyHomePageState extends State<MyHomePage> {
   late THREE.Texture alphaTexture;
 
   THREE.Vector3 mousePos = THREE.Vector3(0, 0, 0);
+
+  Stopwatch stopwatch = Stopwatch();
 
   //Texts
 
@@ -135,9 +139,7 @@ class _MyHomePageState extends State<MyHomePage> {
       await flutterGLplugin.prepareContext();
 
       final loader = THREE.TextureLoader(null);
-      alphaTexture = await loader.loadAsync(
-          "https://raw.githubusercontent.com/Kuntal-Das/textures/main/sp2.png",
-          null);
+      alphaTexture = await loader.loadAsync("https://raw.githubusercontent.com/Kuntal-Das/textures/main/sp2.png", null);
 
       initRenderer();
       initPage();
@@ -162,18 +164,12 @@ class _MyHomePageState extends State<MyHomePage> {
 // if Native..?
 //in der if-clause wird trotzdem mit dem webRenderer hantiert. Hmmm...
     if (!kIsWeb) {
-      var pars = THREE.WebGLRenderTargetOptions({
-        "minFilter": THREE.LinearFilter,
-        "magFilter": THREE.LinearFilter,
-        "format": THREE.RGBAFormat,
-        "samples": 4
-      });
-      webGLrenderTarget = THREE.WebGLRenderTarget(
-          (width * dpr).toInt(), (height * dpr).toInt(), pars);
+      var pars = THREE.WebGLRenderTargetOptions(
+          {"minFilter": THREE.LinearFilter, "magFilter": THREE.LinearFilter, "format": THREE.RGBAFormat, "samples": 4});
+      webGLrenderTarget = THREE.WebGLRenderTarget((width * dpr).toInt(), (height * dpr).toInt(), pars);
       webGLrenderer!.setRenderTarget(webGLrenderTarget);
 
-      sourceTexture =
-          webGLrenderer!.getRenderTargetGLTexture(webGLrenderTarget);
+      sourceTexture = webGLrenderer!.getRenderTargetGLTexture(webGLrenderTarget);
     }
   }
 
@@ -186,16 +182,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
     //
 
-    cameraStatic = THREE.PerspectiveCamera(50, 0.5 * aspect, 1, 10000);
-    cameraStatic.position.z = 2500;
-
-    cameraPerspective =
-        THREE.PerspectiveCamera(50, /* 0.5 * */ aspect, 1, 10000);
+    cameraPerspective = THREE.PerspectiveCamera(50, /* 0.5 * */ aspect, 0.1, 10000);
 
     cameraPerspectiveHelper = THREE.CameraHelper(cameraPerspective);
     scene.add(cameraPerspectiveHelper);
-
     //
+    scene.add(cameraPerspective);
+    cameraPerspective.position.z = -210;
 
     activeCamera = cameraPerspective;
     activeHelper = cameraPerspectiveHelper;
@@ -203,7 +196,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // counteract different front orientation of cameras vs rig
 //    cameraPerspective.rotation.y = THREE.Math.PI;
 
-    scene.add(cameraPerspective);
+    //scene.add(cameraPerspective);
 
     //
     //weiße kugel
@@ -211,7 +204,7 @@ class _MyHomePageState extends State<MyHomePage> {
     sphereMaterial.color = THREE.Color(1, 1, 1);
     sphereMaterial.visible = false;
 
-    sphere = THREE.Mesh(THREE.SphereGeometry(100, 16, 8),
+    sphere = THREE.Mesh(THREE.SphereGeometry(20, 16, 8),
         sphereMaterial /* THREE.MeshBasicMaterial({"color": 0xffffff, "wireframe": true}) */);
 
     scene.add(sphere);
@@ -230,38 +223,45 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final donutPointsGeom = fillWithPoints(donutGeometry, 1000);
 
-    final donutPointsMat = THREE.PointsMaterial()
-      ..color = THREE.Color(0.8, 0.9, 1)
-      ..size = 10 // THREE.MathUtils.randFloat(1, 20)
-      ..map = alphaTexture
-      ..alphaMap = alphaTexture
+    final donutPointsMat = THREE.ShaderMaterial()
+      // ..color = THREE.Color(0.8, 0.9, 1)
+      // ..size = 10 // THREE.MathUtils.randFloat(1, 20)
+      // ..map = alphaTexture
+      // ..alphaMap = alphaTexture
       ..vertexShader = vertexShader
       ..fragmentShader = fragmentShader
-      ..transparent = true
+      // ..transparent = true
       ..blending = THREE.CustomBlending
       ..blendEquation = THREE.AddEquation
       ..blendSrc = THREE.SrcAlphaFactor
       ..alphaToCoverage = true
-      ..blendDst = THREE.OneMinusSrcAlphaFactor;
-
-    final donutPoints = THREE.Points(donutPointsGeom, donutPointsMat);
+      ..blendDst = THREE.OneMinusSrcAlphaFactor
+      ..uniforms = {
+        "pointSize": {
+          "type": "float",
+          "value": 50,
+        },
+        "starTexture": {"type": "sampler2D", "value": alphaTexture}, // OK!,
+        "time": {"type": "float", "value": 0.0}
+      };
+    donutPoints = THREE.Points(donutPointsGeom, donutPointsMat);
 
     donut.add(donutPoints);
 
     //Punkte Exp
-    final pPointsGeo = THREE.SphereGeometry(50, 16, 10);
-    final pPointsMat = THREE.ShaderMaterial()
-      ..vertexShader = vertexShader
-      ..fragmentShader = fragmentShader
-      ..uniforms = {
-        "pointSize": {"type": "float", "value": 15.0},
-        "pointsTexture": {"value": alphaTexture},
-      }
-      ..transparent = true;
+    // final pPointsGeo = THREE.SphereGeometry(50, 16, 10);
+    // final pPointsMat = THREE.ShaderMaterial()
+    //   ..vertexShader = vertexShader
+    //   ..fragmentShader = fragmentShader
+    //   ..uniforms = {
+    //     "pointSize": {"type": "float", "value": 15.0},
+    //     "pointsTexture": {"value": alphaTexture},
+    //   }
+    //   ..transparent = true;
 
-    pPoints = THREE.Points(donutPointsGeom, pPointsMat);
+    // pPoints = THREE.Points(donutPointsGeom, pPointsMat);
 
-    sphere.add(pPoints);
+    // sphere.add(pPoints);
 
     //Sterne
     var starsGeometry = THREE.BufferGeometry();
@@ -274,19 +274,21 @@ class _MyHomePageState extends State<MyHomePage> {
       vertices.add(THREE.MathUtils.randFloatSpread(2000)); // z
     }
 
-    starsGeometry.setAttribute('position',
-        THREE.Float32BufferAttribute(Float32Array.fromList(vertices), 3));
+    starsGeometry.setAttribute('position', THREE.Float32BufferAttribute(Float32Array.fromList(vertices), 3));
 
-    var starsMaterial = THREE.PointsMaterial()
+    var starsMaterial =
+        donutPointsMat /* THREE.PointsMaterial()
       ..map = alphaTexture
-      ..size = 5
+      ..size =13
+      ..color = THREE.Color(0.9, 0.9, 1.0)
       ..transparent = true
       ..blending = THREE.CustomBlending
       ..blendEquation = THREE.AddEquation
       ..blendSrc = THREE.SrcAlphaFactor
       ..alphaToCoverage = true
       ..blendDst = THREE.OneMinusSrcAlphaFactor
-      ..lights = true;
+      ..lights = true */
+        ;
 
     var stars = THREE.Points(starsGeometry, starsMaterial);
 
@@ -315,23 +317,28 @@ class _MyHomePageState extends State<MyHomePage> {
 //Wird benutzt um die Animation anzutreiben
     var driver = DateTime.now().millisecondsSinceEpoch * 0.0001;
 
-    sphere.position.x = 700 * THREE.Math.cos(driver);
-    sphere.position.z = 700 * THREE.Math.sin(driver);
-    sphere.position.y = 700 * THREE.Math.sin(driver);
+    // sphere.position.x = 100 * THREE.Math.cos(driver);
+    // sphere.position.z = 100 * THREE.Math.sin(driver);
+    // sphere.position.y = 100 * THREE.Math.sin(driver);
 
-    //TorusPoints
+    //radiate DonutPoints
 
-    double distToCamera = cameraPerspective.position.distanceTo(donut.position);
+    //    sphere.material.uniforms["myUniform"]["value"] = mousePos; //OK!
+    donutPoints.material.uniforms["time"]["value"] = stopwatch.elapsedMilliseconds.toDouble();
 
-//grüne kugel rotiert um weiße kugel
-    sphere.children[0].position.x = 150 * THREE.Math.cos(2 * driver);
-    sphere.children[0].position.z = 150 * THREE.Math.sin(2 * driver);
+    sphere.children[0].position.x = 80 * THREE.Math.cos(3 * driver);
+    sphere.children[0].position.x = 30 * THREE.Math.cos(2 * driver);
+    sphere.children[0].position.z = 70 * THREE.Math.sin(2 * driver);
 
-    cameraPerspective.position.z += scroll * 10;
-    debugPrint("cameraPos.z: ${cameraPerspective.position.z}");
+    sphere.children[0].rotateX(0.003);
+    sphere.children[0].rotateX(0.002);
+    sphere.children[0].rotateZ(0.004);
 
-    cameraPerspective.position.x += mousePos.x;
-    cameraPerspective.position.y += mousePos.y;
+    cameraPerspective.position.z += (-scroll);
+    //debugPrint("cameraPos.z: ${cameraPerspective.position.z}");
+
+    cameraPerspective.position.x += mousePos.x * 0.7;
+    cameraPerspective.position.y += mousePos.y * 0.7;
     //debugPrint(mousePos.dx.toString());
 
     cameraPerspective.lookAt(sphere.position);
@@ -378,17 +385,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
     disposed = true;
     flutterGLplugin.dispose();
-
+    stopwatch.stop();
     super.dispose();
   }
 
   void generateList() {
-    randomTextList = List<String>.generate(100,
-        (index) => "Das ist nur ein Blindtext $index");
+    randomTextList = List<String>.generate(100, (index) => "Das ist nur ein Blindtext $index");
   }
 
   @override
   Widget build(BuildContext context) {
+    stopwatch.start();
     generateList();
     return Scaffold(
       body: Builder(
@@ -406,9 +413,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Builder(builder: (BuildContext context) {
                         if (kIsWeb) {
                           return flutterGLplugin.isInitialized
-                              ? HtmlElementView(
-                                  viewType:
-                                      flutterGLplugin.textureId!.toString())
+                              ? HtmlElementView(viewType: flutterGLplugin.textureId!.toString())
                               : Container();
                         } else {
                           return flutterGLplugin.isInitialized
@@ -424,7 +429,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Listener(
                         onPointerSignal: (event) {
                           if (event is PointerScrollEvent) {
-                            scroll =  event.scrollDelta.dy * 0.01;
+                            scroll = event.scrollDelta.dy * 0.01;
                           }
                         },
                         // We need MouseRegion because "onExit" doesn't work for Listener-Widget
@@ -449,20 +454,17 @@ class _MyHomePageState extends State<MyHomePage> {
                             debugPrint(mousePos.x.toString());
                           },
                           child: ListView(shrinkWrap: true, children: [
-                            ...randomTextList
+                            ...remembryTexts
                                 .map((e) => Padding(
                                       padding: EdgeInsets.only(
-                                          bottom: Random(50).nextDouble() * 600,
-                                          top: Random(50).nextDouble() * 600),
+                                          bottom: Random(50).nextDouble() * 600, top: Random(50).nextDouble() * 600),
                                       child: Text(
                                         e,
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                             fontWeight: FontWeight.w300,
-                                            color:
-                                                Colors.white.withOpacity(0.8),
-                                            fontSize:
-                                                Random().nextDouble() * 70),
+                                            color: Colors.white.withOpacity(0.8),
+                                            fontSize: 30 + Random().nextDouble() * 40),
                                       ),
                                     ))
                                 .toList()
@@ -477,23 +479,33 @@ class _MyHomePageState extends State<MyHomePage> {
           ));
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        child: const Text("render"),
-        onPressed: () {
-          render();
-        },
-      ),
     );
     ;
   }
+
+  List<String> remembryTexts = [
+    "Erinnerung AN DICH",
+    "Was bleibt, wenn ein Mensch stirbt?",
+    "Die Erinnerungen seiner Frau?",
+    "Die Anekdoten seiner Freunde?",
+    "Welche Geschichten könnte die Familie erzählen?",
+    "Was haben die Freunde beim Sport mit ihm erlebt?",
+    "Was könntendie Kollegen erzählen?",
+    "Was die Nachbarn?",
+    "Jeder hat seine ganz eigene Erinnerung…"
+        "Es wäre schade, wenn das verloren ginge…",
+    "Wir bieten Erinnerungsseiten, die all diese Geschichten sammeln.",
+    "Es braucht tausend Stimmen,um eine einzige Geschichte zu erzählen.",
+    "João Camilo",
+    "© ERINNERUNG AN DICH | 2021"
+  ];
 }
 
 var ray = THREE.Ray();
 var size = THREE.Vector3();
 
 var dir = THREE.Vector3(1, 1, 1).normalize();
-var dummyTarget =
-    THREE.Vector3(); // to prevent logging of warnings from ray.at() method
+var dummyTarget = THREE.Vector3(); // to prevent logging of warnings from ray.at() method
 
 THREE.BufferGeometry fillWithPoints(THREE.BufferGeometry geometry, int count) {
   geometry.computeBoundingBox();
@@ -507,9 +519,7 @@ THREE.BufferGeometry fillWithPoints(THREE.BufferGeometry geometry, int count) {
     }*/
   var counter = 0;
   while (counter < count) {
-    var v = THREE.Vector3(
-        THREE.Math.randFloat(bbox.min.x, bbox.max.x),
-        THREE.Math.randFloat(bbox.min.y, bbox.max.y),
+    var v = THREE.Vector3(THREE.Math.randFloat(bbox.min.x, bbox.max.x), THREE.Math.randFloat(bbox.min.y, bbox.max.y),
         THREE.Math.randFloat(bbox.min.z, bbox.max.z));
     if (isInside(v, geometry)) {
       points.add(v);
@@ -541,8 +551,7 @@ bool isInside(THREE.Vector3 v, THREE.BufferGeometry geometry) {
     vA.fromBufferAttribute(pos, i * 3 + 0);
     vB.fromBufferAttribute(pos, i * 3 + 1);
     vC.fromBufferAttribute(pos, i * 3 + 2);
-    if (ray.intersectTriangle(vA, vB, vC, false, dummyTarget) != null)
-      counter++;
+    if (ray.intersectTriangle(vA, vB, vC, false, dummyTarget) != null) counter++;
   }
 
   return counter % 2 == 1;
@@ -553,24 +562,61 @@ bool isInside(THREE.Vector3 v, THREE.BufferGeometry geometry) {
 // https://github.com/mrdoob/three.js/blob/master/examples/webgl_interactive_points.html
 
 String vertexShader = """
+
+float rand(vec2 co){
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
     uniform float pointSize;
+    uniform float time;
+    varying float fade;
+    varying float vertexPositionFactor;
 
    void main(){
 
+    vertexPositionFactor = (position.x - position.y + position.z) * 0.00005;
+
     //calculate position in world space
-    vec4 wPosition =   modelMatrix * vec4(position, 1.);
+    vec4 wPosition =  projectionMatrix* modelViewMatrix * vec4(position, 1.);
     
-    gl_PointSize = pointSize -(distance(cameraPosition.xyz, wPosition.xyz)/pointSize)*0.2;
-    gl_Position = projectionMatrix* modelViewMatrix * vec4(position,1.);
+    gl_PointSize = pointSize -(distance(cameraPosition.xyz, wPosition.xyz)/pointSize);
+
+    fade = distance(cameraPosition.xyz, wPosition.xyz) * 0.01;
+
+    gl_Position =  wPosition; 
 }
     """;
 
 String fragmentShader = """ 
 
-      uniform sampler2D pointsTexture;
+float rand(vec2 co){
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+vec2 rotateUV(vec2 uv, float rotation)
+{
+    float mid = 0.5;
+    float cosAngle = cos(rotation);
+    float sinAngle = sin(rotation);
+    return vec2(
+        cosAngle * (uv.x - mid) + sinAngle * (uv.y - mid) + mid,
+        cosAngle * (uv.y - mid) - sinAngle * (uv.x - mid) + mid
+    );
+}
+      varying float vertexPositionFactor;
+      varying float fade;
+      uniform sampler2D starTexture;
+      uniform float time;
 
 			void main() {
+        vec2 uv = gl_PointCoord;
 
-				gl_FragColor = vec4(1.0 ) ;
+        // rotate 
+        float rotationFactor = time * vertexPositionFactor;
+
+        vec2 rotatedUVs = rotateUV(gl_PointCoord, rotationFactor);
+
+        vec4 color = texture(starTexture, rotatedUVs);
+        
+				gl_FragColor = color * 0.95;
 			}
     """;
