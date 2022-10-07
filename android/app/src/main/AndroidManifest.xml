@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.flutter_3d">
    <application
-        android:label="flutter_3d"
+        android:label="Remembry Demo"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
