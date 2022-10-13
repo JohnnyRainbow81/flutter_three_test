@@ -7,7 +7,9 @@ import 'package:flutter/material.dart' hide Color;
 import 'package:flutter_gl/flutter_gl.dart';
 import 'package:three_dart/three3d/math/index.dart';
 import 'package:three_dart/three3d/renderers/webgl/index.dart';
+import 'package:three_dart/three3d/scenes/index.dart';
 import 'package:three_dart/three_dart.dart' as THREE;
+import 'package:three_dart_jsm/three_dart_jsm.dart' as THREE_JSM;
 import 'dart:math' as math;
 
 void main() {
@@ -69,7 +71,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   late THREE.Texture alphaTexture;
 
-  THREE.Vector3 mousePos = THREE.Vector3(0, 0, 0);
+  THREE.Vector3 mousePosNormalized = THREE.Vector3(0, 0, 0);
 
   Stopwatch stopwatch = Stopwatch();
 
@@ -97,6 +99,33 @@ class _MyHomePageState extends State<MyHomePage> {
   dynamic sourceTexture;
 
   double scroll = 0;
+
+  Future<THREE.Object3D> loadModel(
+      {required String modelPath,
+      required String modelFile,
+      String? texturePath,
+      String? textureFile}) async {
+    var _loader = THREE_JSM.RGBELoader(null);
+    _loader.setPath(texturePath);
+
+    if (texturePath != null && textureFile != null) {
+      var _hdrTexture = await _loader.loadAsync(textureFile);
+
+      _hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
+      // scene.background = _hdrTexture;
+      // scene.environment = _hdrTexture;
+    }
+
+    var loader = THREE_JSM.GLTFLoader(null).setPath(modelPath);
+
+    var result = await loader.loadAsync('DamagedHelmet.gltf');
+
+    print(" gltf load sucess result: $result  ");
+
+    THREE.Object3D object = result["scene"];
+
+    return object;
+  }
 
   initAll(BuildContext context) {
     debugPrint("initAll()");
@@ -139,10 +168,12 @@ class _MyHomePageState extends State<MyHomePage> {
       await flutterGLplugin.prepareContext();
 
       final loader = THREE.TextureLoader(null);
-      alphaTexture = await loader.loadAsync("https://raw.githubusercontent.com/Kuntal-Das/textures/main/sp2.png", null);
+      alphaTexture = await loader.loadAsync(
+          "https://raw.githubusercontent.com/Kuntal-Das/textures/main/sp2.png",
+          null);
 
       initRenderer();
-      initPage();
+      await initPage();
     });
   }
 
@@ -164,16 +195,22 @@ class _MyHomePageState extends State<MyHomePage> {
 // if Native..?
 //in der if-clause wird trotzdem mit dem webRenderer hantiert. Hmmm...
     if (!kIsWeb) {
-      var pars = THREE.WebGLRenderTargetOptions(
-          {"minFilter": THREE.LinearFilter, "magFilter": THREE.LinearFilter, "format": THREE.RGBAFormat, "samples": 4});
-      webGLrenderTarget = THREE.WebGLRenderTarget((width * dpr).toInt(), (height * dpr).toInt(), pars);
+      var pars = THREE.WebGLRenderTargetOptions({
+        "minFilter": THREE.LinearFilter,
+        "magFilter": THREE.LinearFilter,
+        "format": THREE.RGBAFormat,
+        "samples": 4
+      });
+      webGLrenderTarget = THREE.WebGLRenderTarget(
+          (width * dpr).toInt(), (height * dpr).toInt(), pars);
       webGLrenderer!.setRenderTarget(webGLrenderTarget);
 
-      sourceTexture = webGLrenderer!.getRenderTargetGLTexture(webGLrenderTarget);
+      sourceTexture =
+          webGLrenderer!.getRenderTargetGLTexture(webGLrenderTarget);
     }
   }
 
-  initPage() {
+  initPage() async {
     debugPrint("initPage()");
 
     aspect = width / height;
@@ -182,7 +219,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     //
 
-    cameraPerspective = THREE.PerspectiveCamera(50, /* 0.5 * */ aspect, 0.1, 10000);
+    cameraPerspective =
+        THREE.PerspectiveCamera(50, /* 0.5 * */ aspect, 0.1, 10000);
 
     cameraPerspectiveHelper = THREE.CameraHelper(cameraPerspective);
     scene.add(cameraPerspectiveHelper);
@@ -248,21 +286,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
     donut.add(donutPoints);
 
-    //Punkte Exp
-    // final pPointsGeo = THREE.SphereGeometry(50, 16, 10);
-    // final pPointsMat = THREE.ShaderMaterial()
-    //   ..vertexShader = vertexShader
-    //   ..fragmentShader = fragmentShader
-    //   ..uniforms = {
-    //     "pointSize": {"type": "float", "value": 15.0},
-    //     "pointsTexture": {"value": alphaTexture},
-    //   }
-    //   ..transparent = true;
-
-    // pPoints = THREE.Points(donutPointsGeom, pPointsMat);
-
-    // sphere.add(pPoints);
-
     //Sterne
     var starsGeometry = THREE.BufferGeometry();
     List<double> vertices = [];
@@ -274,7 +297,8 @@ class _MyHomePageState extends State<MyHomePage> {
       vertices.add(THREE.MathUtils.randFloatSpread(2000)); // z
     }
 
-    starsGeometry.setAttribute('position', THREE.Float32BufferAttribute(Float32Array.fromList(vertices), 3));
+    starsGeometry.setAttribute('position',
+        THREE.Float32BufferAttribute(Float32Array.fromList(vertices), 3));
 
     var starsMaterial =
         donutPointsMat /* THREE.PointsMaterial()
@@ -293,6 +317,19 @@ class _MyHomePageState extends State<MyHomePage> {
     var stars = THREE.Points(starsGeometry, starsMaterial);
 
     scene.add(stars);
+
+    // 3D Model
+    THREE.Object3D helmet = await loadModel(
+      modelPath: 'assets/models/gltf/flower/',
+      modelFile: 'scene.gltf',
+    );
+
+    // helmet.scale.multiplyScalar(5);
+    // helmet.position = Vector3(0, 0, 0);
+
+    // donut.add(helmet);
+
+    // scene.add(THREE.AmbientLight(0xffffff));
 
     animate();
   }
@@ -323,8 +360,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
     //radiate DonutPoints
 
-    //    sphere.material.uniforms["myUniform"]["value"] = mousePos; //OK!
-    donutPoints.material.uniforms["time"]["value"] = stopwatch.elapsedMilliseconds.toDouble();
+    //    sphere.material.uniforms["myUniform"]["value"] = mousePos; //OK!*
+    donutPoints.material.uniforms["time"]["value"] =
+        stopwatch.elapsedMilliseconds.toDouble();
 
     sphere.children[0].position.x = 80 * THREE.Math.cos(3 * driver);
     sphere.children[0].position.x = 30 * THREE.Math.cos(2 * driver);
@@ -337,8 +375,8 @@ class _MyHomePageState extends State<MyHomePage> {
     cameraPerspective.position.z += (-scroll);
     //debugPrint("cameraPos.z: ${cameraPerspective.position.z}");
 
-    cameraPerspective.position.x += mousePos.x * 0.7;
-    cameraPerspective.position.y += mousePos.y * 0.7;
+    cameraPerspective.position.x += mousePosNormalized.x * 0.7;
+    cameraPerspective.position.y += mousePosNormalized.y * 0.7;
     //debugPrint(mousePos.dx.toString());
 
     cameraPerspective.lookAt(sphere.position);
@@ -353,7 +391,7 @@ class _MyHomePageState extends State<MyHomePage> {
     activeHelper.visible = false;
 
     webGLrenderer!.setViewport(0, 0, width /*  / 2 */, height);
-    webGLrenderer!.setClearColor(THREE.Color(0.0, 0.0, 0.1));
+    webGLrenderer!.setClearColor(THREE.Color(1.0, 1.0, 1.0));
     webGLrenderer!.render(scene, activeCamera);
 
     activeHelper.visible = true;
@@ -390,7 +428,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void generateList() {
-    randomTextList = List<String>.generate(100, (index) => "Das ist nur ein Blindtext $index");
+    randomTextList = List<String>.generate(
+        100, (index) => "Das ist nur ein Blindtext $index");
   }
 
   @override
@@ -413,7 +452,9 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Builder(builder: (BuildContext context) {
                         if (kIsWeb) {
                           return flutterGLplugin.isInitialized
-                              ? HtmlElementView(viewType: flutterGLplugin.textureId!.toString())
+                              ? HtmlElementView(
+                                  viewType:
+                                      flutterGLplugin.textureId!.toString())
                               : Container();
                         } else {
                           return flutterGLplugin.isInitialized
@@ -448,23 +489,26 @@ class _MyHomePageState extends State<MyHomePage> {
                             double x = (event.position.dx / width - 0.5) * 2;
                             double y = (event.position.dy / height - 0.5) * 2;
 
-                            mousePos.x = x;
-                            mousePos.y = y;
+                            mousePosNormalized.x = x;
+                            mousePosNormalized.y = y;
 
-                            debugPrint(mousePos.x.toString());
+                          //  debugPrint(mousePosNormalized.x.toString());
                           },
                           child: ListView(shrinkWrap: true, children: [
                             ...remembryTexts
                                 .map((e) => Padding(
                                       padding: EdgeInsets.only(
-                                          bottom: Random(50).nextDouble() * 600, top: Random(50).nextDouble() * 600),
+                                          bottom: Random(50).nextDouble() * 600,
+                                          top: Random(50).nextDouble() * 600),
                                       child: Text(
                                         e,
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                             fontWeight: FontWeight.w300,
-                                            color: Colors.white.withOpacity(0.8),
-                                            fontSize: 30 + Random().nextDouble() * 40),
+                                            color:
+                                                Colors.white.withOpacity(0.8),
+                                            fontSize: 30 +
+                                                Random().nextDouble() * 40),
                                       ),
                                     ))
                                 .toList()
@@ -505,7 +549,8 @@ var ray = THREE.Ray();
 var size = THREE.Vector3();
 
 var dir = THREE.Vector3(1, 1, 1).normalize();
-var dummyTarget = THREE.Vector3(); // to prevent logging of warnings from ray.at() method
+var dummyTarget =
+    THREE.Vector3(); // to prevent logging of warnings from ray.at() method
 
 THREE.BufferGeometry fillWithPoints(THREE.BufferGeometry geometry, int count) {
   geometry.computeBoundingBox();
@@ -519,7 +564,9 @@ THREE.BufferGeometry fillWithPoints(THREE.BufferGeometry geometry, int count) {
     }*/
   var counter = 0;
   while (counter < count) {
-    var v = THREE.Vector3(THREE.Math.randFloat(bbox.min.x, bbox.max.x), THREE.Math.randFloat(bbox.min.y, bbox.max.y),
+    var v = THREE.Vector3(
+        THREE.Math.randFloat(bbox.min.x, bbox.max.x),
+        THREE.Math.randFloat(bbox.min.y, bbox.max.y),
         THREE.Math.randFloat(bbox.min.z, bbox.max.z));
     if (isInside(v, geometry)) {
       points.add(v);
@@ -551,7 +598,8 @@ bool isInside(THREE.Vector3 v, THREE.BufferGeometry geometry) {
     vA.fromBufferAttribute(pos, i * 3 + 0);
     vB.fromBufferAttribute(pos, i * 3 + 1);
     vC.fromBufferAttribute(pos, i * 3 + 2);
-    if (ray.intersectTriangle(vA, vB, vC, false, dummyTarget) != null) counter++;
+    if (ray.intersectTriangle(vA, vB, vC, false, dummyTarget) != null)
+      counter++;
   }
 
   return counter % 2 == 1;
