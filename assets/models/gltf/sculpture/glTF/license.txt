@@ -1,0 +1,11 @@
+Model Information:
+* title:	XR Lower Austria Sculpture | NOE Art Point Cloud
+* source:	https://sketchfab.com/3d-models/xr-lower-austria-sculpture-noe-art-point-cloud-f971e7e4cf8d40d6afd437c334cd6ed9
+* author:	MWintersberger (https://sketchfab.com/mwintersberger)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "XR Lower Austria Sculpture | NOE Art Point Cloud" (https://sketchfab.com/3d-models/xr-lower-austria-sculpture-noe-art-point-cloud-f971e7e4cf8d40d6afd437c334cd6ed9) by MWintersberger (https://sketchfab.com/mwintersberger) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

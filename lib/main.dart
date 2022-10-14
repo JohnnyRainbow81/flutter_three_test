@@ -106,9 +106,9 @@ class _MyHomePageState extends State<MyHomePage> {
       String? texturePath,
       String? textureFile}) async {
     var _loader = THREE_JSM.RGBELoader(null);
-    _loader.setPath(texturePath);
 
     if (texturePath != null && textureFile != null) {
+      _loader.setPath(texturePath);
       var _hdrTexture = await _loader.loadAsync(textureFile);
 
       _hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
@@ -118,7 +118,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     var loader = THREE_JSM.GLTFLoader(null).setPath(modelPath);
 
-    var result = await loader.loadAsync('DamagedHelmet.gltf');
+    var result = await loader.loadAsync(modelFile);
 
     print(" gltf load sucess result: $result  ");
 
@@ -319,17 +319,17 @@ class _MyHomePageState extends State<MyHomePage> {
     scene.add(stars);
 
     // 3D Model
-    THREE.Object3D helmet = await loadModel(
-      modelPath: 'assets/models/gltf/flower/',
+    THREE.Object3D object3d = await loadModel(
+      modelPath: 'assets/models/gltf/flower/glTF/',  //FIXME RangeError: Invalid typed array length: 4
       modelFile: 'scene.gltf',
     );
 
-    // helmet.scale.multiplyScalar(5);
-    // helmet.position = Vector3(0, 0, 0);
+    object3d.scale.multiplyScalar(5);
+    object3d.position = Vector3(0, 0, 0);
 
-    // donut.add(helmet);
+    donut.add(object3d);
 
-    // scene.add(THREE.AmbientLight(0xffffff));
+    scene.add(THREE.AmbientLight(0xffffff));
 
     animate();
   }
@@ -492,7 +492,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             mousePosNormalized.x = x;
                             mousePosNormalized.y = y;
 
-                          //  debugPrint(mousePosNormalized.x.toString());
+                            //  debugPrint(mousePosNormalized.x.toString());
                           },
                           child: ListView(shrinkWrap: true, children: [
                             ...remembryTexts
